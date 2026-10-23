@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: supplyzero
+      POSTGRES_USER: supplyzero
+      POSTGRES_PASSWORD: supplyzero_dev_only
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supplyzero -d supplyzero"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports: ["1883:1883"]
+    volumes: ["./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro"]
+  seed:
+    build: .
+    command: ["python", "-m", "app.seed"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://supplyzero:supplyzero_dev_only@postgres:5432/supplyzero
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://supplyzero:supplyzero_dev_only@postgres:5432/supplyzero
+      REDIS_URL: redis://redis:6379/0
+      MQTT_HOST: mosquitto
+      MQTT_ENABLED: "true"
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      mosquitto: {condition: service_started}
+      seed: {condition: service_completed_successfully}
+volumes:
+  pgdata:

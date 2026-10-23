@@ -1,0 +1,12 @@
+.venv/
+.supplyzero-tmp/
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.db
+*.sqlite
+*.sqlite3
+.env
+
